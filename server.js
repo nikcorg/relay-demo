@@ -31,7 +31,7 @@ var compiler = webpack({
       }
     ]
   },
-  output: {filename: 'app.js', path: '/'}
+  output: {filename: 'app.js', path: '/', devtool: "inline-source-map" }
 });
 var app = new WebpackDevServer(compiler, {
   contentBase: '/public/',

@@ -7,27 +7,121 @@
  *  of patent rights can be found in the PATENTS file in the same directory.
  */
 
-// Model types
-class User {}
-class Widget {}
+import { toGlobalId } from "graphql-relay";
 
-// Mock data
-var viewer = new User();
-viewer.id = '1';
-viewer.name = 'Anonymous';
-var widgets = ['What\'s-it', 'Who\'s-it', 'How\'s-it'].map((name, i) => {
-  var widget = new Widget();
-  widget.name = name;
-  widget.id = `${i}`;
-  return widget;
-});
+const ipsum = require("lorem-ipsum");
 
-module.exports = {
-  // Export methods that your schema can use to interact with your database
-  getUser: (id) => id === viewer.id ? viewer : null,
-  getViewer: () => viewer,
-  getWidget: (id) => widgets.find(w => w.id === id),
-  getWidgets: () => widgets,
-  User,
-  Widget,
+const nextId = ((seed = 0) => () => ++seed)();
+
+const db = {
+  blogs: [],
+  posts: [],
+  comments: []
 };
+
+// Model types
+class Blog {
+  constructor(id, name) {
+    this.id = nextId();
+    this.name = name || ipsum({
+      units: "words",
+      count: 4
+    });
+  }
+}
+
+class Post {
+  constructor(blog, title, content) {
+    this.id = nextId();
+    this.blog = blog.id;
+    this.created = String(Date.now());
+    this.commentCount = 0;
+    this.title = title || ipsum({
+      units: "sentence",
+      count: 1,
+      sentenceLowerBound: 3,
+      sentenceUpperBound: 10
+    });
+    this.content = content || ipsum({
+      units: "paragraph",
+      count: 10 - (Math.random() * 5 | 0),
+      paragraphLowerBound: 3,
+      paragraphUpperBound: 5
+    });
+  }
+
+  addComment(content) {
+    const comment = new Comment(this, content);
+    db.comments.push(comment);
+    this.commentCount += 1;
+    return comment;
+  }
+}
+
+class Comment {
+  constructor (post, content) {
+    this.id = nextId();
+    this.post = post.id;
+    this.created = String(Date.now());
+    this.content = content || ipsum({
+      units: "paragraph",
+      count: 1,
+      paragraphLowerBound: 3,
+      paragraphUpperBound: 5
+    });
+  }
+}
+
+let blog, viewer;
+
+const hydrateWithMockData = () => {
+  db.blogs = [new Blog()];
+
+  blog = db.blogs[0];
+  viewer = blog;
+
+  db.posts = db.posts.concat([
+    new Post(blog),
+    new Post(blog),
+    new Post(blog),
+    new Post(blog),
+    new Post(blog),
+    new Post(blog),
+    new Post(blog)
+  ]);
+  db.posts.forEach(
+    (post) => {
+      post.addComment();
+      post.addComment();
+      post.addComment();
+    });
+
+  console.log("Hydrated db");
+}
+
+const byCreatedAsc = ({ created: a }, { created: b }) => parseInt(a, 10) - parseInt(b, 10);
+const byCreatedDesc = ({ created: a }, { created: b }) => parseInt(b, 10) - parseInt(a, 10);
+
+const getViewer = () => viewer;
+const getBlog = (id) => id === blog.id ? blog : null;
+const getPost = (id) => db.posts.find(p => p.id === id);
+const getPosts = (blog) => db.posts.filter(p => p.blog === blog.id).sort(byCreatedDesc);
+const getComment = (id) => db.comments.find(c => c.id === id);
+const getComments = (post) => db.comments.filter(c => c.post === post.id).sort(byCreatedAsc);
+const addComment = (id, content) => getPost(id).addComment(content);
+
+module.exports = Object.entries({
+  getViewer,
+  getBlog,
+  getPost,
+  getPosts,
+  getComment,
+  getComments,
+  addComment,
+}).
+reduce((acc, [name, fn]) => ({ ...acc, [name]: fn }), {
+  Blog,
+  Post,
+  Comment,
+  hydrateWithMockData
+});

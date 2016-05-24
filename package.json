@@ -21,6 +21,8 @@
     "express-graphql": "0.4.9",
     "graphql": "0.4.17",
     "graphql-relay": "0.3.6",
+    "lorem-ipsum": "^1.0.3",
+    "ramda": "^0.21.0",
     "react": "0.14.7",
     "react-dom": "0.14.7",
     "react-relay": "0.7.3",
