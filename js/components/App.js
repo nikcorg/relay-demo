@@ -1,34 +1,33 @@
 import React from 'react';
 import Relay from 'react-relay';
+import Blog from "./blog";
+import BlogHomeRoute from "../routes/BlogHomeRoute";
 
 class App extends React.Component {
-  render() {
-    return (
-      <div>
-        <h1>Widget list</h1>
-        <ul>
-          {this.props.viewer.widgets.edges.map(edge =>
-            <li key={edge.node.id}>{edge.node.name} (ID: {edge.node.id})</li>
-          )}
-        </ul>
-      </div>
-    );
-  }
+    render() {
+        const { viewer: blog, viewer: { edges: posts } } = this.props;
+
+        return <Relay.RootContainer
+            Component={Blog}
+            route={new BlogHomeRoute({ blogId: blog.id })}
+        />
+    }
 }
 
 export default Relay.createContainer(App, {
-  fragments: {
-    viewer: () => Relay.QL`
-      fragment on User {
-        widgets(first: 10) {
-          edges {
-            node {
-              id,
-              name,
-            },
-          },
-        },
-      }
-    `,
-  },
+    fragments: {
+        viewer: () => Relay.QL`
+            fragment on Blog {
+                id
+                name
+                posts(first: 10) {
+                    edges {
+                        node {
+                            id
+                        }
+                    }
+                }
+            }
+        `
+    }
 });

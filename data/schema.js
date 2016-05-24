@@ -17,6 +17,7 @@ import {
   GraphQLObjectType,
   GraphQLSchema,
   GraphQLString,
+  GraphQLInputObjectType
 } from 'graphql';
 
 import {
@@ -26,18 +27,34 @@ import {
   fromGlobalId,
   globalIdField,
   mutationWithClientMutationId,
+  cursorForObjectInConnection,
   nodeDefinitions,
 } from 'graphql-relay';
 
 import {
   // Import methods that your schema can use to interact with your database
   User,
-  Widget,
-  getUser,
+  Blog,
+  Post,
+  Comment,
   getViewer,
-  getWidget,
-  getWidgets,
+  getUser,
+  getBlog,
+  getBlogs,
+  getPost,
+  getPosts,
+  getComment,
+  getComments,
+  addComment,
+  hydrateWithMockData
 } from './database';
+
+import {
+  compose,
+  lensProp,
+  view,
+  nthArg
+} from "ramda";
 
 /**
  * We get the node interface and field from the Relay library.
@@ -48,19 +65,23 @@ import {
 var {nodeInterface, nodeField} = nodeDefinitions(
   (globalId) => {
     var {type, id} = fromGlobalId(globalId);
-    if (type === 'User') {
-      return getUser(id);
-    } else if (type === 'Widget') {
-      return getWidget(id);
+    if (type === 'Blog') {
+      return getBlog(id);
+    } else if (type === 'Post') {
+      return getPost(id);
+    } else if (type === 'Comment') {
+      return getComment(id);
     } else {
       return null;
     }
   },
   (obj) => {
-    if (obj instanceof User) {
-      return userType;
-    } else if (obj instanceof Widget)  {
-      return widgetType;
+    if (obj instanceof Blog)  {
+      return blogType;
+    } else if (obj instanceof Post) {
+      return postType;
+    } else if (obj instanceof Comment) {
+      return commentType;
     } else {
       return null;
     }
@@ -71,39 +92,78 @@ var {nodeInterface, nodeField} = nodeDefinitions(
  * Define your own types here
  */
 
-var userType = new GraphQLObjectType({
-  name: 'User',
-  description: 'A person who uses our app',
+var blogType = new GraphQLObjectType({
+  name: "Blog",
   fields: () => ({
-    id: globalIdField('User'),
-    widgets: {
-      type: widgetConnection,
-      description: 'A person\'s collection of widgets',
-      args: connectionArgs,
-      resolve: (_, args) => connectionFromArray(getWidgets(), args),
+    id: globalIdField("Blog"),
+    name: {
+      type: GraphQLString
     },
+    posts: {
+      type: postConnection,
+      args: connectionArgs,
+      resolve: (blog, args) => connectionFromArray(getPosts(blog), args)
+    }
   }),
-  interfaces: [nodeInterface],
+  interfaces: [nodeInterface]
 });
 
-var widgetType = new GraphQLObjectType({
-  name: 'Widget',
-  description: 'A shiny widget',
+var postType = new GraphQLObjectType({
+  name: "Post",
   fields: () => ({
-    id: globalIdField('Widget'),
-    name: {
-      type: GraphQLString,
-      description: 'The name of the widget',
+    id: globalIdField("Post"),
+    title: {
+      type: GraphQLString
+    },
+    created: {
+      type: GraphQLString
+    },
+    content: {
+      type: GraphQLString
+    },
+    commentCount: {
+      type: GraphQLInt
+    },
+    comments: {
+      type: commentConnection,
+      args: connectionArgs,
+      resolve: (post, args) => connectionFromArray(getComments(post), args)
+    }
+  }),
+  interfaces: [nodeInterface]
+});
+
+var commentType = new GraphQLObjectType({
+  name: "Comment",
+  fields: () => ({
+    id: globalIdField("Comment"),
+    content: {
+      type: GraphQLString
+    },
+    created: {
+      type: GraphQLString
     },
   }),
-  interfaces: [nodeInterface],
+  interfaces: [nodeInterface]
 });
 
 /**
  * Define your own connection types here
  */
-var {connectionType: widgetConnection} =
-  connectionDefinitions({name: 'Widget', nodeType: widgetType});
+
+var {connectionType: postConnection} =
+  connectionDefinitions({ name: "Post", nodeType: postType });
+
+var {connectionType: commentConnection, edgeType: commentConnectionEdge } =
+  connectionDefinitions({ name: "Comment", nodeType: commentType });
+
+var idLens = view(lensProp("id"));
+
+var toLocalId = compose(Number, idLens, fromGlobalId);
+
+var idArg = compose(idLens, nthArg(1));
+
+var makeIdObj = (id) => ({ id });
 
 /**
  * This is the type that will be the root of our query,
@@ -115,10 +175,105 @@ var queryType = new GraphQLObjectType({
     node: nodeField,
     // Add your own root fields here
     viewer: {
-      type: userType,
+      type: blogType,
       resolve: () => getViewer(),
     },
+    blog: {
+      type: blogType,
+      args: {
+        id: {
+          type: GraphQLID
+        }
+      },
+      resolve: compose(getBlog, toLocalId, idArg)
+    },
+    posts: {
+      type: new GraphQLList(postType),
+      args: {
+        id: {
+          type: GraphQLID
+        }
+      },
+      resolve: compose(getPosts, makeIdObj, toLocalId, idArg)
+    },
+    post: {
+      type: postType,
+      args: {
+        id: {
+          type: GraphQLID
+        }
+      },
+      resolve: compose(getPost, toLocalId, idArg)
+    },
+    comments: {
+      type: new GraphQLList(commentType),
+      args: {
+        id: {
+          type: GraphQLID
+        }
+      },
+      resolve: compose(getComments, makeIdObj, toLocalId, idArg)
+    },
+    comment: {
+      type: commentType,
+      args: {
+        id: {
+          type: GraphQLID
+        }
+      },
+      resolve: compose(getComment, toLocalId, idArg)
+    }
   }),
+});
+
+var commentInputType = new GraphQLInputObjectType({
+  name: "CommentInput",
+  fields: () => ({
+    id: { type: GraphQLID },
+    content: { type: GraphQLString }
+  })
+});
+
+var addCommentMutationType = mutationWithClientMutationId({
+  name: "AddComment",
+  inputFields: {
+    postId: { type: new GraphQLNonNull(GraphQLID) },
+    content: { type: new GraphQLNonNull(GraphQLString) }
+  },
+  outputFields: {
+    newCommentEdge: {
+      type: commentConnectionEdge,
+      resolve: (payload) => {
+        const post = getPost(payload.postId);
+        const comment = getComment(payload.commentId);
+
+        console.log(">>>>>>> resolved newCommentEdge", payload.commentId);
+
+        const edge = {
+          node: comment,
+          cursor: cursorForObjectInConnection(getComments(post), comment)
+        };
+
+        console.log(">>>>>>> edge", edge);
+
+        return edge;
+      }
+    },
+    post: {
+      type: postType,
+      resolve: (payload) => getPost(payload.postId)
+    }
+  },
+  mutateAndGetPayload: ({ postId: globalPostId, content }) => {
+    const postId = toLocalId(globalPostId);
+    const post = getPost(postId);
+    const commentId = post.addComment(content).id;
+    const payload = { commentId, postId };
+
+    console.log("mutation payload", payload);
+
+    return payload;
+  }
 });
 
 /**
@@ -129,8 +284,12 @@ var mutationType = new GraphQLObjectType({
   name: 'Mutation',
   fields: () => ({
     // Add your own mutations here
+    addComment: addCommentMutationType
   })
 });
+
+// populate db with mock data
+hydrateWithMockData();
 
 /**
  * Finally, we construct our schema (whose starting query type is the query
@@ -139,5 +298,5 @@ var mutationType = new GraphQLObjectType({
 export var Schema = new GraphQLSchema({
   query: queryType,
   // Uncomment the following after adding some mutation fields:
-  // mutation: mutationType
+  mutation: mutationType
 });
