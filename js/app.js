@@ -1,15 +1,52 @@
-import 'babel-polyfill';
+import "babel-polyfill";
 
-import App from './components/App';
-import AppHomeRoute from './routes/AppHomeRoute';
-import React from 'react';
-import ReactDOM from 'react-dom';
-import Relay from 'react-relay';
+import Relay from "react-relay";
+import React from "react";
+import ReactDOM from "react-dom";
+
+import useRelay from "react-router-relay";
+
+import {
+    hashHistory,
+    Router,
+    Route,
+    IndexRoute,
+    applyRouterMiddleware
+} from "react-router";
+
+import { viewerQuery, postQuery } from "./queries";
+
+import Blog from "./components/Blog";
+import Post from "./components/Post";
+import PostList from "./components/PostList";
+
+const ViewerQuery = { viewer: viewerQuery };
+const PostQuery = { post: postQuery}
+
+const routes = (
+    <Route
+        path="/"
+        component={Blog}
+        queries={ViewerQuery}
+    >
+        <IndexRoute
+            component={PostList}
+            queries={ViewerQuery}
+        />
+        <Route
+            component={Post}
+            path="/post/:postId"
+            queries={PostQuery}
+        />
+    </Route>
+);
 
 ReactDOM.render(
-  <Relay.RootContainer
-    Component={App}
-    route={new AppHomeRoute()}
-  />,
-  document.getElementById('root')
+    <Router
+        history={hashHistory}
+        render={applyRouterMiddleware(useRelay)}
+        routes={routes}
+        environment={Relay.Store}
+    />,
+    document.getElementById("root")
 );

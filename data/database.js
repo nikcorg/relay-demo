@@ -29,6 +29,7 @@ class Blog {
     });
   }
 }
+
 class Post {
   constructor(blog, title, content) {
     this.id = nextId();
@@ -56,6 +57,7 @@ class Post {
     return comment;
   }
 }
+
 class Comment {
   constructor (post, content) {
     this.id = nextId();
@@ -95,16 +97,6 @@ const hydrateWithMockData = () => {
     });
 
   console.log("Hydrated db");
-  // console.log(db.blogs);
-  // console.log(db.posts);
-  // console.log(db.comments);
-}
-
-const peek = (fn, name = "peek") => (...args) => {
-  console.log("[%s] args in", name, args);
-  const ret = fn(...args);
-  console.log("[%s] ret", name, ret);
-  return ret;
 }
 
 const byCreatedAsc = ({ created: a }, { created: b }) => parseInt(a, 10) - parseInt(b, 10);
@@ -128,7 +120,6 @@ module.exports = Object.entries({
   addComment,
 }).
 reduce((acc, [name, fn]) => ({ ...acc, [name]: fn }), {
-// reduce((acc, [name, fn]) => ({ ...acc, [name]: peek(fn, name) }), {
   Blog,
   Post,
   Comment,

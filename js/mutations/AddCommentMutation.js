@@ -34,29 +34,7 @@ export default class AddCommentMutation extends Relay.Mutation {
             fieldIDs: {
                 post: this.props.post.id
             }
-        }/*, {
-            type: "REQUIRED_CHILDREN",
-            children: [Relay.QL`
-                fragment on AddCommentPayload {
-                    newCommentEdge {
-                        node {
-                            id
-                            content
-                        }
-                        cursor
-                    }
-                }
-            `]
-        }, {
-            type: "RANGE_ADD",
-            parentName: "post",
-            parentId: this.props.post.id,
-            connectionName: "comments",
-            edgeName: "newCommentEdge",
-            rangeBehaviors: {
-                "": "append"
-            }
-        }*/];
+        }];
     }
 
     getOptimisticResponse() {

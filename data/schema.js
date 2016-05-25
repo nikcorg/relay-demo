@@ -247,14 +247,10 @@ var addCommentMutationType = mutationWithClientMutationId({
         const post = getPost(payload.postId);
         const comment = getComment(payload.commentId);
 
-        console.log(">>>>>>> resolved newCommentEdge", payload.commentId);
-
         const edge = {
           node: comment,
           cursor: cursorForObjectInConnection(getComments(post), comment)
         };
-
-        console.log(">>>>>>> edge", edge);
 
         return edge;
       }
@@ -269,8 +265,6 @@ var addCommentMutationType = mutationWithClientMutationId({
     const post = getPost(postId);
     const commentId = post.addComment(content).id;
     const payload = { commentId, postId };
-
-    console.log("mutation payload", payload);
 
     return payload;
   }
