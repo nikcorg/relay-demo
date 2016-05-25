@@ -78,15 +78,18 @@ const hydrateWithMockData = () => {
   blog = db.blogs[0];
   viewer = blog;
 
-  db.posts = db.posts.concat([
-    new Post(blog),
-    new Post(blog),
-    new Post(blog),
-    new Post(blog),
-    new Post(blog),
-    new Post(blog),
-    new Post(blog)
-  ]);
+  for (let i = 0; i < 10; i += 1) {
+    db.posts = db.posts.concat([
+      new Post(blog),
+      new Post(blog),
+      new Post(blog),
+      new Post(blog),
+      new Post(blog),
+      new Post(blog),
+      new Post(blog)
+    ]);
+  }
+
   db.posts.forEach(
     (post) => {
       post.addComment();
