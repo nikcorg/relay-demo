@@ -33,20 +33,6 @@ class CommentForm extends React.Component {
         this.setState({ comment: "" });
     }
 
-    dispatchMutation() {
-        const { post } = this.props;
-        const { comment } = this.state;
-
-        return new Promise((resolve, reject) => {
-            Relay.Store.commitUpdate(
-                new AddCommentMutation({ id: post.id, comment, post }), {
-                    onSuccess: resolve,
-                    onFailure: reject
-                }
-            );
-        });
-    }
-
     render() {
         const { comment } = this.state;
 
