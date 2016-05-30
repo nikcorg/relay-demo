@@ -3,6 +3,8 @@ import Relay from 'react-relay';
 import SinglePostRoute from '../routes/SinglePostRoute';
 import Post from "./Post";
 
+const last = arr => arr[arr.length - 1];
+
 class Blog extends React.Component {
     constructor(props) {
         super(props);
@@ -13,32 +15,59 @@ class Blog extends React.Component {
         this.setState({ selectedPost: id });
     }
 
-    renderPosts(posts) {
+    advancePageCursor() {
+        const { relay, blog: { posts } } = this.props;
+        const pageSize = relay.variables.pageSize + 3;
+
+        relay.setVariables({ pageSize });
+    }
+
+    renderPagination() {
+        const { blog: { posts: { pageInfo } } } = this.props;
+
+        if (!pageInfo.hasNextPage) {
+            return null;
+        }
+
+        return <div><button onClick={() => this.advancePageCursor()}>Next page</button></div>;
+    }
+
+    renderPosts() {
+        const { blog: { posts } } = this.props;
         const { selectedPost } = this.state;
 
-        return <ol>{posts.map(
+        if (!posts || 0 === posts.edges.length) {
+            return <p>Sorry, no posts found.</p>;
+        }
+
+        return <ol>{posts.edges.map(
             ({ node: p }) => <li key={p.id} className={p.id === selectedPost ? "selected" : null}>
                 <a href="#" onClick={() => this.selectPost(p.id)}>{p.title}</a></li>)}</ol>;
     }
 
-    render() {
+    renderSelectedPost() {
         const { selectedPost } = this.state;
-        const { blog } = this.props;
+
+        if (!selectedPost) {
+            return null;
+        }
+
+        return <Relay.RootContainer
+            Component={Post}
+            route={new SinglePostRoute({ postId: selectedPost })}
+        />
+    }
+
+    render() {
+        const { blog: { name } } = this.props;
+
         return (
             <div>
-                <h1>{blog.name}</h1>
+                <h1>{name}</h1>
 
-                {blog.posts
-                    ? this.renderPosts(blog.posts.edges)
-                    : <p>Sorry, no posts found.</p>
-                }
-
-                {selectedPost
-                    ? <Relay.RootContainer
-                        Component={Post}
-                        route={new SinglePostRoute({ postId: selectedPost })}
-                    />
-                    : null}
+                {this.renderPosts()}
+                {this.renderPagination()}
+                {this.renderSelectedPost()}
             </div>
         );
     }
@@ -46,7 +75,7 @@ class Blog extends React.Component {
 
 export default Relay.createContainer(Blog, {
     initialVariables: {
-        pageSize: 10
+        pageSize: 3
     },
     fragments: {
         blog: () => Relay.QL`
@@ -54,6 +83,9 @@ export default Relay.createContainer(Blog, {
                 id
                 name
                 posts(first: $pageSize) {
+                    pageInfo {
+                        hasNextPage
+                    }
                     edges {
                         node {
                             id
